@@ -1,10 +1,12 @@
 ---
 layout: default
+usemathjax: true
 ---
+
+# How I implemented and tuned Discrete Soft Actor Critic
 
 **Caution!** This is not a peer-review conference paper, just a blog post. Therefore take the findings with a pinch of salt 
 abd verify! 
-
 
 ## Automatic entropy tuning in SAC
 The authors of [1] proposed the following optimization problem 
@@ -59,7 +61,7 @@ where $\pi(s)$ is the greedy (deterministic) policy, which is chosen with probab
     # log probability of the greedy action                
     target_entropy =-epsilon * np.log(epsilon)                  
                    # log probability of random actions
-                   +(1-epsilon) * np.log((1-epsilon)/(action_space.n-1))                                        
+                   +(1-epsilon) * np.log((1-epsilon)/(action_space.n-1))
 ```
 Thefore, we can ensure that our stochastic policy is at least as stochastic as an epsilon-greedy policy. 
 
