@@ -1,15 +1,13 @@
 ---
 layout: default
+description: Publication list
 ---
 
-- [Publications](#publications)
-  - [Patents](#patents)
-  - [Conference papers](#conference-papers)
-  - [Journal articles](#journal-articles)
-  - [Pre-prints](#pre-prints)
-  - [Book chapters](#book-chapters)
-  
-# Publications 
+- [Patents](#patents)
+- [Conference papers](#conference-papers)
+- [Journal articles](#journal-articles)
+- [Pre-prints](#pre-prints)
+- [Book chapters](#book-chapters)
 
 ## Patents 
 

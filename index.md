@@ -1,5 +1,6 @@
 ---
 layout: default
+description: index page
 ---
 
 I am Aivar Sootla, a reinforcement and machine learning enthusiast with a background in 
@@ -9,7 +10,7 @@ University of Oxford and Imperial College London, published 2 patents, over 50 r
 
 For professional inquiries see my [detailed CV](./cv.html).
 
-## Some thoughts
+## Notes on various subjects
 1. [How I implemented and tuned Discrete Soft Actor Critic](./dsac.html)
 1. [How I implemented Lagrangian PPO](./lppo.html)
 

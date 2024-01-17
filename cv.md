@@ -1,17 +1,15 @@
 ---
 layout: default
+description: Resume
 ---
 
-# Full Resume
-
-- [Full Resume](#full-resume)
-  - [Qualifications](#qualifications)
-  - [Employment History](#employment-history)
-  - [Skills](#skills)
-  - [Open-Source Software Contributions](#open-source-software-contributions)
-  - [Patents](#patents)
-  - [Selected publications](#selected-publications)
-  - [Selected conference presentations](#selected-conference-presentations)
+- [Qualifications](#qualifications)
+- [Employment History](#employment-history)
+- [Skills](#skills)
+- [Open-Source Software Contributions](#open-source-software-contributions)
+- [Patents](#patents)
+- [Selected publications](#selected-publications)
+- [Selected conference presentations](#selected-conference-presentations)
   
 ## Qualifications
 
