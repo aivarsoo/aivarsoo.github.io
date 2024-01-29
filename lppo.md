@@ -32,13 +32,13 @@ $$
 \end{aligned}
 $$
 
-where the costs $$c_t$$ and rewards $$r_t$$ are assumed to be read from the environment. The standard approach to solving this problem is considering a Lagrangian formulation, i.e.
+where the costs $c_t$ and rewards $r_t$ are assumed to be read from the environment. The standard approach to solving this problem is considering a Lagrangian formulation, i.e.
 
 $$
 \max_{\pi_{\theta}}\min_{\lambda \ge 0} J_r - \lambda (J_c - d)
 $$
 
-The new variable $$\lambda$$ is called the Lagrangian penalty is also an optimization variable. The optimization algorithm will now sequentially optimize over $$\pi_{\theta}$$ and $$\lambda$$ using gradient ascent and gradient descent, respectively.
+The new variable $\lambda$ is called the Lagrangian penalty is also an optimization variable. The optimization algorithm will now sequentially optimize over $\pi_{\theta}$ and $\lambda$ using gradient ascent and gradient descent, respectively.
 
 ## Lagrangian penalty modeling
 
@@ -66,21 +66,21 @@ $$
 \nabla {\rm softplus(x)} = \frac{\exp(x)}{1 + \exp(x)}.
 $$
 
-Therefore, the gradient is scaled by the factor $$(1+\exp(-x))^{-1}$$, which is close to one for large values of $$x$$, but smaller than one for $$x<1$$. This means that the derivative update is **scaled down** in comparison with treating `penalty` as `tf` variable. Therefore, when the Lagrangian penalty dips below one, the penalty will be updated with smaller increments in comparison with updates with the penalty being larger than one. Naturally, if the penalty is larger than one, then typically the constraint violations are more pronounced.  
+Therefore, the gradient is scaled by the factor $(1+\exp(-x))^{-1}$, which is close to one for large values of $x$, but smaller than one for $x<1$. This means that the derivative update is **scaled down** in comparison with treating `penalty` as `tf` variable. Therefore, when the Lagrangian penalty dips below one, the penalty will be updated with smaller increments in comparison with updates with the penalty being larger than one. Naturally, if the penalty is larger than one, then typically the constraint violations are more pronounced.  
 
 I implemented the Lagrangian update manually without automatic differentiation so that I could add PID Lagrangian updates. 
 
 ## PID Lagrangian
 
-Recently, it was proposed to treat the penalty term $$\lambda$$ as a control signal in its own right and use a simple, but effective [PID controller](https://portal.research.lu.se/en/publications/advanced-pid-control). [This approach](https://arxiv.org/abs/2007.03964) showed great performance in various tasks including [the safety gym tasks](https://openreview.net/forum?id=GH4q4WmGAsl). 
+Recently, it was proposed to treat the penalty term $\lambda$ as a control signal in its own right and use a simple, but effective [PID controller](https://portal.research.lu.se/en/publications/advanced-pid-control). [This approach](https://arxiv.org/abs/2007.03964) showed great performance in various tasks including [the safety gym tasks](https://openreview.net/forum?id=GH4q4WmGAsl). 
 
-First, let's have a few words on PID (proportional-integral-derivative) controllers. A typical control problem that many engineers face is making a system's output $$y_k$$ following a certain constant reference value $$r$$, using control signals $$u_k$$. The idea of the PID controller is quite simple: we will use the error term $$e = r - y$$ to determine $$u$$:
+First, let's have a few words on PID (proportional-integral-derivative) controllers. A typical control problem that many engineers face is making a system's output $y_k$ following a certain constant reference value $r$, using control signals $u_k$. The idea of the PID controller is quite simple: we will use the error term $e = r - y$ to determine $u$:
 
 $$
 u = K_P e + K_I \int e dt  + K_D \dot e.
 $$
 
-The first term is called *the proportional controller* with the gain $$K_P$$ and it determines the control signal based on the sign of the current error. To ensure the possibility of the zero error tracking *the integral controller* with the gain $$K_I$$ integrates all previous errors. Finally, the main function of the *the derivative controller* with the gain $$K_D$$ is to predict future errors by measuring its derivative. 
+The first term is called *the proportional controller* with the gain $K_P$ and it determines the control signal based on the sign of the current error. To ensure the possibility of the zero error tracking *the integral controller* with the gain $K_I$ integrates all previous errors. Finally, the main function of the *the derivative controller* with the gain $K_D$ is to predict future errors by measuring its derivative. 
 
 In practice, the integral and the derivative part are implemented using approximations. For instance, the easiest way to implement the integral part is to sum up all the previous errors and the derivative part is to use the difference instead of the derivative.
 
@@ -94,7 +94,7 @@ e_k &= J_c - d \\
 \end{aligned}
 $$
 
-where $$(x)_+ = \max(x, 0)$$ makes sure that the penalty term is non-negative. The goal of this "controller" is keeping the error term $$e_k$$ around zero and thus keeping the cost $$J_c$$ around $$d$$.
+where $(x)_+ = \max(x, 0)$ makes sure that the penalty term is non-negative. The goal of this "controller" is keeping the error term $e_k$ around zero and thus keeping the cost $J_c$ around $d$.
 
 Having made this observation, one can reasonably try to implement the P and the D parts as well! The authors propose the following update:
 
@@ -108,15 +108,15 @@ D_k & = p(e_k, D_{k-1}, \alpha_D), \\
 \end{aligned}
 $$
 
-where $$p(x, x_{p}, \alpha) = \alpha x_{p} + (1-\alpha) x$$ is a Polyak update smoothing the error signal for better estimation of proportional and integral parts.
+where $p(x, x_{p}, \alpha) = \alpha x_{p} + (1-\alpha) x$ is a Polyak update smoothing the error signal for better estimation of proportional and integral parts.
 
-In our implementation, we largely follow this recipe, however, we update the $$\mu$$ variable, i.e., the penalty modeled through `softplus`.
+In our implementation, we largely follow this recipe, however, we update the $\mu$ variable, i.e., the penalty modeled through `softplus`.
 
 ## Experimental Results
 ### Tuning the Algorithm
-I tuned the algorithm on the environment first developed by [Cowen-Rivers et al](https://arxiv.org/abs/2006.09436) and is implemented [here](https://github.com/aivarsoo/ray/tree/lagrange-ppo). I will refer the reader to the original paper for the description of the environment. I've set the desired cost limit to $$20$$. 
+I tuned the algorithm on the environment first developed by [Cowen-Rivers et al](https://arxiv.org/abs/2006.09436) and is implemented [here](https://github.com/aivarsoo/ray/tree/lagrange-ppo). I will refer the reader to the original paper for the description of the environment. I've set the desired cost limit to $20$. 
 
-I started tuning the algorithm with a fairly low learning rate $$l_r$$ and a fairly low number of gradient updates per iteration. The idea was to give the penalty optimization more time to adjust for possible mistakes, which I felt was important since the penalty is updated once per iteration. It is probably not the most sample-efficient approach, but it is a good starting point since the experiments can be a bit faster due to the low number of SDG iterations.
+I started tuning the algorithm with a fairly low learning rate $l_r$ and a fairly low number of gradient updates per iteration. The idea was to give the penalty optimization more time to adjust for possible mistakes, which I felt was important since the penalty is updated once per iteration. It is probably not the most sample-efficient approach, but it is a good starting point since the experiments can be a bit faster due to the low number of SDG iterations.
 
 First, I fixed the learning rate and experimented with the number of SDG iterations and penalty term learning rate. I used just two seeds here to evaluate how well the parameters behave.
 
@@ -124,18 +124,18 @@ First, I fixed the learning rate and experimented with the number of SDG iterati
 ![L-PPO Safety Pendulum](assets/images/l-ppo/lr_1e-4_num_sdg_20.png){: width="50%" height="50%" }
 {: style="float: right"}
 
-With $$10$$ SDG iterations, it appears that the penalty $$l_r = 10^{-3}$$ is too low and limits the learning of **the rewards** and decreases the accumulated cost well below the expected level of $$20$$. While increasing the learning rate improves the reward learning and increases the expected cost. While it is less obvious a similar phenomenon is happening with $$20$$ SDG iterations. To figure out why this is happening let's have a look at the Lagrangian penalty terms (here I used $$10$$ SDG iterations). 
+With $10$ SDG iterations, it appears that the penalty $l_r = 10^{-3}$ is too low and limits the learning of **the rewards** and decreases the accumulated cost well below the expected level of $20$. While increasing the learning rate improves the reward learning and increases the expected cost. While it is less obvious a similar phenomenon is happening with $20$ SDG iterations. To figure out why this is happening let's have a look at the Lagrangian penalty terms (here I used $10$ SDG iterations). 
 
 ![L-PPO Safety Pendulum](assets/images/l-ppo/lr_1e-4_penalty_plot.png){: width="50%" height="50%" }{: style="float: center"}
 
-With the penalty learning rate equal $$10^{-3}$$, the penalty term remains large, which is a probable reason for keeping the costs and the rewards down. With an increase to $$5\cdot 10^{-3}$$, the penalty magnitude goes down and stabilizes around the value $$0.16$$ delivering a good trade-off between the constraint satisfaction and the reward learning. With the learning rate $$10^{-2}$$ controlling the penalty magnitude becomes harder, which results in more oscillations in penalty and return learning curves. 
+With the penalty learning rate equal $10^{-3}$, the penalty term remains large, which is a probable reason for keeping the costs and the rewards down. With an increase to $5\cdot 10^{-3}$, the penalty magnitude goes down and stabilizes around the value $0.16$ delivering a good trade-off between the constraint satisfaction and the reward learning. With the learning rate $10^{-2}$ controlling the penalty magnitude becomes harder, which results in more oscillations in penalty and return learning curves. 
 
 
 ### Safety Point Goal
 
 The end result of tuning with
-$$l_r = 10^{-4}$$,
-$$l_{r, penalty} = 5 \cdot 10^{-3}$$
+$l_r = 10^{-4}$,
+$l_{r, penalty} = 5 \cdot 10^{-3}$
 ![L-PPO Safety Gym Point Goal](assets/images/l-ppo/lppo-point-goal.png){: width="50%" height="50%" }
 {: style="float: left"}
 
