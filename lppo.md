@@ -7,7 +7,7 @@ usemathjax: true
 **Caution!** This is not a peer-reviewed paper, just a blog post. Therefore take the findings with a pinch of salt 
 and verify! 
 
-Further, these notes assume the knowledge of Safe Reinforcement Learning methods and specifically the PPO Lagrangian method developed by [Ray et al](https://cdn.openai.com/safexp-short.pdf). 
+Further, these notes assume the knowledge of Safe Reinforcement Learning methods specifically the PPO Lagrangian method developed by [Ray et al 2019](#L-PPO). 
 
 
 ## Implementing Lagrangian PPO and PID Lagrangian
@@ -18,8 +18,9 @@ Further, these notes assume the knowledge of Safe Reinforcement Learning methods
 - [Experimental Results](#experimental-results)
   - [Tuning the Algorithm](#tuning-the-algorithm)
   - [Safety Point Goal](#safety-point-goal)
+- [References](#references)
 
-[The repo can be found here](https://github.com/aivarsoo/ray/tree/lagrange-ppo)
+The repo can be found in [Safe PPO](#SafePPORepo)
 
 ## Main idea
 
@@ -72,7 +73,7 @@ I implemented the Lagrangian update manually without automatic differentiation s
 
 ## PID Lagrangian
 
-Recently, it was proposed to treat the penalty term $\lambda$ as a control signal in its own right and use a simple, but effective [PID controller](https://portal.research.lu.se/en/publications/advanced-pid-control). [This approach](https://arxiv.org/abs/2007.03964) showed great performance in various tasks including [the safety gym tasks](https://openreview.net/forum?id=GH4q4WmGAsl). 
+Recently, it was proposed to treat the penalty term $\lambda$ as a control signal in its own right and use a simple, but effective PID controller (see [Astrom et al 2006](#PID) for details on PID control). This approach showed great performance in various tasks including the safety gym tasks as shown by [Stooke et al 2020](#PID-Lagrange) and [Sootla et al 2023](#Simmer). 
 
 First, let's have a few words on PID (proportional-integral-derivative) controllers. A typical control problem that many engineers face is making a system's output $y_k$ following a certain constant reference value $r$, using control signals $u_k$. The idea of the PID controller is quite simple: we will use the error term $e = r - y$ to determine $u$:
 
@@ -84,8 +85,7 @@ The first term is called *the proportional controller* with the gain $K_P$ and i
 
 In practice, the integral and the derivative part are implemented using approximations. For instance, the easiest way to implement the integral part is to sum up all the previous errors and the derivative part is to use the difference instead of the derivative.
 
-
-[Stooke et al](https://arxiv.org/abs/2007.03964) argued that a standard Lagrangian update can be seen as an *integral* controller. Indeed, a penalty update can be written as follows:
+[Stooke et al 2020](#PID-Lagrange) argued that a standard Lagrangian update can be seen as an *integral* controller. Indeed, a penalty update can be written as follows:
 
 $$
 \begin{aligned}
@@ -108,13 +108,13 @@ D_k & = p(e_k, D_{k-1}, \alpha_D), \\
 \end{aligned}
 $$
 
-where $p(x, x_{p}, \alpha) = \alpha x_{p} + (1-\alpha) x$ is a Polyak update smoothing the error signal for better estimation of proportional and integral parts.
+where $p(x, x_{p}, \alpha) = \alpha x_{p} + (1-\alpha) x$ is a Polyak update smoothing the error signal for better estimation of proportional and derivative parts. Note that the Polyak update **is not** used for the integral part. I am not sure why the authors made this choice, however, this may be because the Polyak update is in effect a low-pass filter. Since the integrators are often approximated by low-pass filters, it may be redundant to integrate the already filtered signal. For the proportional and the derivative part, however., filtering the error helps with fewer overreactions to sudden changes in the error signal common in RL training processes. 
 
 In our implementation, we largely follow this recipe, however, we update the $\mu$ variable, i.e., the penalty modeled through `softplus`.
 
 ## Experimental Results
 ### Tuning the Algorithm
-I tuned the algorithm on the environment first developed by [Cowen-Rivers et al](https://arxiv.org/abs/2006.09436) and is implemented [here](https://github.com/aivarsoo/ray/tree/lagrange-ppo). I will refer the reader to the original paper for the description of the environment. I've set the desired cost limit to $20$. 
+I tuned the algorithm on the environment first developed by [[Cowen-Rivers et al 2022]](#Samba) and is implemented in [Safe PPO](#SafePPORepo). I will refer the reader to the original paper for the description of the environment. I've set the desired cost limit to $20$. 
 
 I started tuning the algorithm with a fairly low learning rate $l_r$ and a fairly low number of gradient updates per iteration. The idea was to give the penalty optimization more time to adjust for possible mistakes, which I felt was important since the penalty is updated once per iteration. It is probably not the most sample-efficient approach, but it is a good starting point since the experiments can be a bit faster due to the low number of SDG iterations.
 
@@ -124,7 +124,7 @@ First, I fixed the learning rate and experimented with the number of SDG iterati
 ![L-PPO Safety Pendulum](assets/images/l-ppo/lr_1e-4_num_sdg_20.png){: width="50%" height="50%" }
 {: style="float: right"}
 
-With $10$ SDG iterations, it appears that the penalty $l_r = 10^{-3}$ is too low and limits the learning of **the rewards** and decreases the accumulated cost well below the expected level of $20$. While increasing the learning rate improves the reward learning and increases the expected cost. While it is less obvious a similar phenomenon is happening with $20$ SDG iterations. To figure out why this is happening let's have a look at the Lagrangian penalty terms (here I used $10$ SDG iterations). 
+With $10$ SDG iterations, it appears that the penalty learning rate $l_{r, penalty} = 10^{-3}$ is too low and limits the learning of **the rewards** and decreases the accumulated cost well below the expected level of $20$. While increasing the learning rate improves the reward learning and increases the expected cost. While it is less obvious a similar phenomenon is happening with $20$ SDG iterations. To figure out why this is happening let's have a look at the Lagrangian penalty terms (here I used $10$ SDG iterations). 
 
 ![L-PPO Safety Pendulum](assets/images/l-ppo/lr_1e-4_penalty_plot.png){: width="50%" height="50%" }{: style="float: center"}
 
@@ -133,12 +133,54 @@ With the penalty learning rate equal $10^{-3}$, the penalty term remains large, 
 
 ### Safety Point Goal
 
-The end result of tuning with
-$l_r = 10^{-4}$,
-$l_{r, penalty} = 5 \cdot 10^{-3}$
-![L-PPO Safety Gym Point Goal](assets/images/l-ppo/lppo-point-goal.png){: width="50%" height="50%" }
-{: style="float: left"}
+In the case of the safety gymnasium environments, the value of tuning different hyper-parameters becomes even more important. After many trial and error attempts, I decided to go for quite a small learning rate $l_r = 10^{-4}$ for the policy and just five SDG updates per iteration. This is quite different from the default parameters in the safety starter agents, and the motivation was to give the algorithm enough time to correct errors if needed.
 
-The main observation is that in this training regime, the policy first learns how to satisfy the constraints and only then starts learning to maximize the return. If we increase the learning rate without increasing the penalty learning rate, however, the policy will first learn to maximize the reward and then slowly decrease the average cost. 
+I tested three penalty learning rates $l_{r, penalty} = [10^{-3}, 5 \cdot 10^{-3}, 10^{-2}]$ with three seeds to demonstrate three different situations. 
 
-Tuning the learning rate seems to be a complicated task requiring a trial-and-error approach. Now I am working on adding PID Lagrangian experiments that should make things a bit easier.
+If $l_{r, penalty} = 10^{-3}$, then the algorithm prioritizes the rewards at the beginning of the learning process and only after dozens of iterations learns to be safe by increasing the Lagrange penalty to a sufficient level. 
+
+When I set $l_{r, penalty} = 10^{-2}$ then the opposite happens and the learning process prioritizes safety from the start! While we do get a safe policy the returns learning curve is not stable and the policy performance is not as good at the end of learning.
+
+Finally, setting $l_{r, penalty} = 5 \cdot 10^{-3}$ seems to be just right! The returns grow in a stable fashion and the cost is controlled at an appropriate level. 
+
+![L-PPO Safety Gym Point Goal](assets/images/l-ppo/pg-l-ppo.png)
+
+The curves were smoothed by computing a running average with a window equal to $5$ for a better illustration. In total $10^7$ training steps were taken.
+
+Perhaps, with a bit more tuning I could've gotten a perfect curve. However, it may be easier to turn on the proportional part instead. I took the overly cautious value for the penalty learning rate $l_{r, penalty} = 10^{-3}$ and tested a few $P$ coefficients with the Polyak update set to $\alpha =0.05$.
+
+![PID-L-PPO Safety Gym Point Goal](assets/images/l-ppo/pg-pid-ppo.png)
+
+The curves were smoothed by computing a running average with a window equal to $5$ for a better illustration. In total $10^7$ training steps were taken.
+
+It is striking how large the improvement in the learning curves for all values is: the value $P=0.05$ dominates in terms of mean and variance for both reward and cost. 
+
+
+## References
+
+<a id="SafetyGymnasiumRepo"></a>
+[SG] [https://github.com/PKU-Alignment/safety-gymnasium](https://github.com/PKU-Alignment/safety-gymnasium)
+
+<a id="LPPORepo"></a>
+[SSA] [https://github.com/openai/safety-starter-agents](https://github.com/openai/safety-starter-agents)
+
+<a id="SafePPORepo"></a>
+[SafePPO] [https://github.com/aivarsoo/ray/tree/lagrange-ppo](https://github.com/aivarsoo/ray/tree/lagrange-ppo)
+
+<a id="PID"></a>
+[Astrom et al 2006] Åström, K. J., & Hägglund, T. (2006). Advanced PID Control. ISA - The Instrumentation, Systems and Automation Society.
+
+<a id="Samba"></a>
+[Cowen-Rivers et al 2022] Cowen-Rivers, Alexander I., et al. ["Samba: Safe model-based & active reinforcement learning."](https://link.springer.com/article/10.1007/s10994-021-06103-6) Machine Learning 111.1 (2022): 173-203.
+
+<a id="SafetyGymnasium"></a>
+[Ji23] Ji, Jiaming, et al. ["Safety-Gymnasium: A Unified Safe Reinforcement Learning Benchmark."](https://sites.google.com/view/safety-gymnasium) arXiv preprint arXiv:2310.12567 (2023).
+
+<a id="L-PPO"></a>
+[Ray et al 2019] Alex Ray, Joshua Achiam, Dario Amodei. ["Benchmarking Safe Exploration in Deep Reinforcement Learning"](https://cdn.openai.com/safexp-short.pdf)
+
+<a id="Simmer"></a>
+[Sootla et al 2023] Sootla, Aivar, et al. ["Enhancing safe exploration using safety state augmentation."](https://proceedings.neurips.cc/paper_files/paper/2022/file/debd0ae2083160397a22a4a8831c7230-Paper-Conference.pdf) Advances in Neural Information Processing Systems 35 (2022): 34464-34477.
+
+<a id="PID-Lagrange"></a>
+[Stooke et al 2020] Stooke, Adam, Joshua Achiam, and Pieter Abbeel. ["Responsive safety in reinforcement learning by PID lagrangian methods."](https://arxiv.org/abs/2007.03964) International Conference on Machine Learning. PMLR, 2020.
