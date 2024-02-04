@@ -8,7 +8,7 @@ usemathjax: true
 **Caution!** This is not a peer-reviewed conference paper, just a blog post. Therefore take the findings with a pinch of salt 
 and verify! 
 
-Further, these notes assume the knowledge of Reinforcement Learning methods specifically the Soft-Actor Critic method by [Haarnoja et al](https://proceedings.mlr.press/v80/haarnoja18b/haarnoja18b.pdf). 
+Further, these notes assume the knowledge of Reinforcement Learning methods specifically the Soft-Actor Critic method by [Haarnoja et al 2018](#SAC). 
 
 - [A sketch of the Soft-Actor Critic Approach](#a-sketch-of-the-soft-actor-critic-approach)
 - [Implementation of automatic entropy tuning](#implementation-of-automatic-entropy-tuning)
@@ -24,7 +24,7 @@ Further, these notes assume the knowledge of Reinforcement Learning methods spec
 
 ## A sketch of the Soft-Actor Critic Approach
 
-In the original, seminal paper [Haarnoja et al](https://proceedings.mlr.press/v80/haarnoja18b/haarnoja18b.pdf) proposed the following optimization problem as an off-policy policy gradient approach:
+In the original, seminal paper [Haarnoja et al 2018](#SAC) proposed the following optimization problem as an off-policy policy gradient approach:
 
 $$
 \max_{\pi(\cdot)} ~\mathbb{E}_{(s_t,a_t) \sim \rho_\pi} [r(s_t, a_t)], 
@@ -45,7 +45,7 @@ In the case, of Gaussian action distribution centered around zero, the entropy c
 $$H_{\rm target} = 0.5 * \log(\sigma^2 * 2 * \pi * e),$$ 
 
 which is equal to $-0.88$ for $\sigma=0.1$. This means that the lower bound on the policy entropy should be a Gaussian with a small variance.
-Therefore, [Haarnoja et al](https://proceedings.mlr.press/v80/haarnoja18b/haarnoja18b.pdf) suggested setting the target entropy to $-|\cal A|$, where $|\cal A|$ is the dimension of the action space. Assuming that the actions are mutually independent, this validates the entropy calculations above.
+Therefore, [Haarnoja et al 2018](#SAC) suggested setting the target entropy to $-|\cal A|$, where $|\cal A|$ is the dimension of the action space. Assuming that the actions are mutually independent, this validates the entropy calculations above.
 
 
 ## Implementation of automatic entropy tuning
@@ -67,7 +67,7 @@ $$
 \mathbb{E}_{(s_t,a_t) \sim \rho_\pi} [r(s_t, a_t)] + \exp(\beta) \mathbb{E}_{(s_t,a_t) \sim \rho_\pi} \left(-\log(\pi(a_t|s_t)) - H_{\rm target} \right)
 $$
 
-where $\beta = \log(\alpha)$. However, in practice the gradient update is different! For example, in the paper [Revisiting Discrete Soft Actor Critic](https://arxiv.org/abs/2209.10081) the authors used the following loss in [their implementation](https://github.com/coldsummerday/Revisiting-Discrete-SAC/blob/main/src/libs/discrete_sac.py#L231):
+where $\beta = \log(\alpha)$. However, in practice the gradient update is different! For example, in the paper Revisiting Discrete Soft Actor Critic [Zhou et al 2022](#Revisiting-DSAC) the authors used the following loss in [their implementation](https://github.com/coldsummerday/Revisiting-Discrete-SAC/blob/main/src/libs/discrete_sac.py#L231):
 
 ```python
     log_prob = - entropy.detach() + self._target_entropy
@@ -87,7 +87,7 @@ While the standard loss seems to be mathematically incorrect, it does result in 
 ## How to set the target entropy in the discrete SAC?
 ### Standard approach
 
-How do these ideas translate to the discrete case? [Christodoulou](https://arxiv.org/pdf/1910.07207.pdf) derived the discrete version of the algorithm and proposed to 
+How do these ideas translate to the discrete case? [Christodoulou 2019](#DSAC) derived the discrete version of the algorithm and proposed to 
 set the target entropy as follows:
 
 ```python
@@ -128,28 +128,28 @@ which is closer to zero indicating a more deterministic approach. For $0.99$ the
 
 ## Experiments
 
-While the derivation may seem plausible, the proof is always in the pudding or [rather in eating it](https://en.wiktionary.org/wiki/the_proof_of_the_pudding_is_in_the_eating#:~:text=The%20current%20phrasing%20is%20generally,you%20fry%20the%20eggs%E2%80%9D). Therefore, I conducted some experiments. 
+While the derivation may seem plausible, the proof is always in the pudding or rather in eating it. Therefore, I conducted some experiments. 
 
 ### Experiments with Ray RLlib Library
 
 ![D-SAC cart-pole](assets/images/dsac/sac_cartpole.png){: width="100%" height="100%" }{: style="float: left"}  
 
 
-I first tried Ray Library and its implementation of SAC. The Ray implementation of the algorithm uses only one Q-function for policy updates, but two functions are used in the Q-function estimation. This choice was a bit confusing to me and therefore I implemented a version of [RED-Q](https://openreview.net/pdf?id=AY8zfZm0tDd) to make sure that the target entropy is an issue and not other design choices. RED-Q uses an ensemble of functions to estimate the Q function and update the policy. 
+I first tried Ray Library and its implementation of SAC. The Ray implementation of the algorithm uses only one Q-function for policy updates, but two functions are used in the Q-function estimation. This choice was a bit confusing to me and therefore I implemented a version of RED-Q by [Chen et al 2022](#RED-Q) to make sure that the target entropy is an issue and not other design choices. RED-Q uses an ensemble of functions to estimate the Q function and update the policy. 
 
 I then experimented with the Cart-Pole environment and the implementations of SAC and RED-Q. I set the target entropy to $0.11$, which corresponds to $\varepsilon=0.95$. 
-The results in the figure to the left clearly indicate that setting the target entropy according to the proposed formula is better than the approach initially proposed by [Christodoulou](https://arxiv.org/pdf/1910.07207.pdf). This also may be surprising that the standard formula didn't perform well in such a simple environment. However, considering that the target entropy is close to the entropy of the uniform distribution, it seems that the algorithm struggles to find "good" actions in this simple case.
+The results in the figure to the left clearly indicate that setting the target entropy according to the proposed formula is better than the approach initially proposed by [Christodoulou 2019](#DSAC). This also may be surprising that the standard formula didn't perform well in such a simple environment. However, considering that the target entropy is close to the entropy of the uniform distribution, it seems that the algorithm struggles to find "good" actions in this simple case.
 
-Experiments on Atari environments were not very successful, however, this is because additional features needed to be implemented. This was the reason to move to [Tianshou](https://github.com/thu-ml/tianshou) library, where these features were implemented.
+Experiments on Atari environments were not very successful, however, this is because additional features needed to be implemented. This was the reason to move to [Tianshou](#Tianshou) library, where these features were implemented.
 
 ### Experiments with Tianshou Library
 
-[Tianshou](https://github.com/thu-ml/tianshou) is an RL library from Tencent and recently was used as a base to [revisit](https://github.com/coldsummerday/Revisiting-Discrete-SAC?tab=readme-ov-file) and improve [discrete Soft-actor-critic algorithm](https://arxiv.org/abs/2209.10081). [Zhou et al](https://arxiv.org/abs/2209.10081) made two improvements to the algorithm: penalize entropy and double average Q-learning with Q-function clipping. 
+Tianshou is an RL library from Tencent and recently was used as a base to [revisit](https://github.com/coldsummerday/Revisiting-Discrete-SAC?tab=readme-ov-file) and improve discrete Soft-actor-critic algorithm by [Christodoulou et al 2019](#DSAC). [Zhou et al 2022](#Revisiting-DSAC) made two improvements to the algorithm: penalize entropy and double average Q-learning with Q-function clipping. 
 
 ![D-SAC pong](assets/images/dsac/pong.png){: width="43%" height="43%" }{: style="float: left"} 
 ![D-SAC pong](assets/images/dsac/pong_alpha_lr.png){: width="57%" height="57%" }{: style="float: left"} 
 
-I start with the environment Pong and use the same parameters. I used the standard parameters, three seeds, and chose $\varepsilon = 0.95$, which leads to the target entropy equal to $0.28$. Note that [Zhou et al](https://arxiv.org/abs/2209.10081) used a constant $\alpha$ without automatic entropy tuning. Their results are competitive due to a careful choice of $\alpha$ and the adjustments they made. However, automatic entropy tuning outperforms the tuned version in this case. It is also visible that the variance is lowered with automatic entropy tuning. The learning speed of the return can be adjusted by using different learning rates for the parameter $\alpha$. 
+I start with the environment Pong and use the same parameters. I used the standard parameters, three seeds, and chose $\varepsilon = 0.95$, which leads to the target entropy equal to $0.28$. Note that [Zhou et al 2022](#Revisiting-DSAC) used a constant $\alpha$ without automatic entropy tuning. Their results are competitive due to a careful choice of $\alpha$ and the adjustments they made. However, automatic entropy tuning outperforms the tuned version in this case. It is also visible that the variance is lowered with automatic entropy tuning. The learning speed of the return can be adjusted by using different learning rates for the parameter $\alpha$. 
 I set it to $10^{-5}$ to allow the algorithm to explore at the beginning of the learning process as $\alpha$ approaches zero fairly fast with $10^{-4}$, for example. 
 
 
@@ -173,11 +173,22 @@ Plotting the entropy we observe that we generally converge to the target entropy
 
 The scope of my experiments is limited to make confident conclusions, but it is clear that the target entropy choice is (at least) appropriate and leads to stable experiments. In simple environments (cartpole, pong), automatic entropy tuning is working quite well delivering stable learning curves and returns.
 
-I didn't seek to answer other questions, but there could be a few more interesting ones. For example, do we need the entropy penalty suggested by [Zhou et al](https://arxiv.org/abs/2209.10081) if entropy is automatically tuned? It does seem though that the fixes by [Zhou et al](https://arxiv.org/abs/2209.10081) are still quite beneficial for Atari games.  
+I didn't seek to answer other questions, but there could be a few more interesting ones. For example, do we need the entropy penalty suggested by [Zhou et al 2022](#Revisiting-DSAC) if entropy is automatically tuned? It does seem though that the fixes by [Zhou et al 2022](#Revisiting-DSAC) are still quite beneficial for Atari games.  
 
 ## References
 
-1. Haarnoja T, Zhou A, Hartikainen K, Tucker G, Ha S, Tan J, Kumar V, Zhu H, Gupta A, Abbeel P, Levine S. Soft actor-critic algorithms and applications. arXiv preprint arXiv:1812.05905. 2018 Dec 13.
-2. Christodoulou, Petros. “Soft actor-critic for discrete action settings.” arXiv preprint arXiv:1910.07207 (2019).
-3. Zhou, Haibin, et al. "Revisiting discrete soft actor-critic." arXiv preprint arXiv:2209.10081 (2022). 
-4. Chen, Xinyue, et al. "Randomized ensembled double q-learning: Learning fast without a model." arXiv preprint arXiv:2101.05982 (2021).
+<a id="Tianshou"></a>
+[Tianshou] [https://github.com/thu-ml/tianshou](https://github.com/thu-ml/tianshou)
+
+<a id="SAC"></a>
+[Haarnoja et al 2018] Haarnoja T, Zhou A, Hartikainen K, Tucker G, Ha S, Tan J, Kumar V, Zhu H, Gupta A, Abbeel P, Levine S. ["Soft actor-critic algorithms and applications."](https://arxiv.org/abs/1812.05905) arXiv preprint arXiv:1812.05905. 2018 Dec 13.
+
+<a id="DSAC"></a>
+[Christodoulou et al 2019] Christodoulou, Petros. ["Soft actor-critic for discrete action settings."](https://arxiv.org/pdf/1910.07207.pdf) arXiv preprint arXiv:1910.07207 (2019).
+
+<a id="Revisiting-DSAC"></a>
+[Zhou et al 2022] Zhou, Haibin, et al. ["Revisiting discrete soft actor-critic."](https://arxiv.org/abs/2209.10081) arXiv preprint arXiv:2209.10081 (2022). 
+
+<a id="RED-Q"></a>
+[Chen et al] Chen, Xinyue, et al. ["Randomized ensembled double q-learning: Learning fast without a model."](https://openreview.net/pdf?id=AY8zfZm0tDd) arXiv preprint arXiv:2101.05982 (2021).
+
